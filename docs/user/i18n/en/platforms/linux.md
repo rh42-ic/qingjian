@@ -35,7 +35,7 @@ Then add the input method as described in [Your first input](#Your-first-input) 
 
 ## deb / rpm packages (Debian, Ubuntu, Fedora, RHEL 8/9)
 
-The [GitHub Release](https://github.com/qingjian-team/qingjian/releases/latest) also has deb and rpm packages. On Debian / Ubuntu / Fedora there are two of each: `qingjian` is Qingjian itself (background service, IBus front end and dictionaries), and `qingjian-fcitx5` is the Fcitx5 add-on; with IBus install only the first, with Fcitx5 install both. On RHEL 8/9 there is only the IBus-only `qingjian` main package, with no Fcitx5 add-on. Qingjian then starts automatically when you log in, no terminal needed.
+The [GitHub Release](https://github.com/qingjian-team/qingjian/releases/latest) also has deb and rpm packages. On Debian / Ubuntu / Fedora there are two of each: `qingjian` is Qingjian itself (background service, IBus front end and dictionaries), and `qingjian-fcitx5` is the Fcitx5 add-on; with IBus install only the first, with Fcitx5 install both. On RHEL 8/9 there is only the IBus version, the `qingjian` main package, with no Fcitx5 add-on. Qingjian then starts automatically when you log in, no terminal needed.
 
 ```sh
 # Debian / Ubuntu

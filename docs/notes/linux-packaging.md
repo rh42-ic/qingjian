@@ -26,6 +26,8 @@ QINGJIAN_SAMPLE=1 apps/linux/packaging/build.sh   # 没有产品数据时只带�
 | fcitx5 插件（rpm） | Fedora 42 容器 | 同上 |
 | 随包资源 | 本机，`files.py resources` | 与 `install.sh` 同一套产品数据校验（`tools/release/data.lock`）与布局 |
 
+EL9 的 glibc 2.34 与 Ubuntu 22.04 相同，理论上能复用那边的产物；但两代都对着目标发行版的 OpenSSL 与 rpm 依赖各编一份，省得 EL8/EL9 混用。EL8 则必须重编（glibc 2.28 跑不了 `GLIBC_2.34`）。
+
 ## 各装了什么
 
 deb 与 rpm 都拆成两个包：

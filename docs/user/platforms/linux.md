@@ -35,7 +35,7 @@ sudo apt install python3 fcitx5 fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5
 
 ## deb / rpm 包（Debian、Ubuntu、Fedora、RHEL 8/9）
 
-[GitHub Release](https://github.com/qingjian-team/qingjian/releases/latest) 上另有 deb 与 rpm 包。Debian / Ubuntu / Fedora 每种两个：`qingjian` 是青简本体（后台服务、IBus 前端与词库），`qingjian-fcitx5` 是 Fcitx5 插件；用 IBus 只装前一个，用 Fcitx5 两个都装。RHEL 8/9 只有 IBus-only 的 `qingjian` 主包，没有 fcitx5 插件。装好后青简随登录自动启动，不用开终端。
+[GitHub Release](https://github.com/qingjian-team/qingjian/releases/latest) 上另有 deb 与 rpm 包。Debian / Ubuntu / Fedora 每种两个：`qingjian` 是青简本体（后台服务、IBus 前端与词库），`qingjian-fcitx5` 是 Fcitx5 插件；用 IBus 只装前一个，用 Fcitx5 两个都装。RHEL 8/9 只有 IBus 版的 `qingjian` 主包，没有 fcitx5 插件。装好后青简随登录自动启动，不用开终端。
 
 ```sh
 # Debian / Ubuntu
