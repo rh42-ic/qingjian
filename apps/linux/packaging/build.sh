@@ -167,6 +167,11 @@ RUN dnf install -y --setopt=install_weak_deps=False \
   cp "$stage"/rpms/*/*.rpm "$out/el$el/"
 }
 
-for format in "${formats[@]}"; do "build_$format"; done
+for format in "${formats[@]}"; do
+  case "$format" in
+    el8|el9) build_el "${format#el}" ;;
+    *) "build_$format" ;;
+  esac
+done
 echo "==> 产物（$out）："
 find "$out" -maxdepth 2 -type f -printf '  %p\n' | sort
