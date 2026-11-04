@@ -146,12 +146,13 @@ build_el() {
   local tag stage="$work/el$el"
   bin="$stage/cargo/release"
   tag=$(image "el$el" "FROM almalinux:$el
+# 基础镜像自带 coreutils-single / curl-minimal；不要再装 coreutils / curl，会冲突。
 RUN dnf install -y --setopt=install_weak_deps=False \
-      bash coreutils findutils grep sed gawk tar gzip bzip2 xz unzip which \
+      bash findutils grep sed gawk tar gzip bzip2 xz unzip which \
       gcc gcc-c++ make cmake pkgconf-pkg-config openssl-devel openssl \
-      rpm-build redhat-rpm-config ca-certificates curl git-core perl \
+      rpm-build redhat-rpm-config ca-certificates git-core perl \
       binutils file patch diffutils cpio shadow-utils util-linux procps-ng \
-      python3 systemd autoconf automake libtool zlib-devel libcurl-devel \
+      python3 systemd autoconf automake libtool zlib-devel \
       sqlite-devel kernel-headers && dnf clean all")
   # 宿主的工具链与 crate 缓存照旧挂进去；CARGO_TARGET_DIR 指到本代的 stage，免得 EL8/EL9 互相覆盖
   docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e CARGO_HOME=/cargo -e RUSTUP_HOME=/rustup \
