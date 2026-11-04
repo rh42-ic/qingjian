@@ -2,6 +2,7 @@
 # 版本号读各平台壳：macOS apps/macos/Cargo.toml、Windows apps/windows/server/Cargo.toml、Linux apps/linux/server/Cargo.toml、Android apps/android/core/Cargo.toml，要打的平台都得与标签一致。
 # 流程：prepare 核对版本、建草稿 Release → 各平台 job 并行打包，把安装包与摘要 / 构建信息片段传到草稿上
 # → publish 合并片段、转正、生成并签名 releases.json、触发官网构建。任何平台失败都停在草稿，不会发出缺平台的版本。
+# Linux 除 Ubuntu 26.04 的 tar.gz 与 deb/rpm 外，另出 RHEL 8/9（AlmaLinux 容器）的 IBus-only RPM（linux-rpm-el job），只挂 Release、不进 releases.json。
 # 流程见 docs/notes/release.md。macOS 的签名与公证可选，下面的 Secrets 配齐才签，否则出 ad-hoc 包；
 # Windows 现在没有代码签名（QINGJIAN_UIACCESS=0 关掉 uiAccess，否则没签名的 Server 起不来），证书办下来再加 signtool。
 #   QINGJIAN_CERT_P12            Developer ID Application + Installer 两张证书（含私钥）导出的 .p12，base64
@@ -107,7 +108,7 @@ jobs:
             printf '\n> Windows：这一版没有代码签名：安装时 SmartScreen 拦截请点「更多信息 → 仍要运行」；任务栏搜索、「设置」等系统应用里候选窗口可能被遮挡。\n' >> "$NOTES"
           fi
           if [[ "$LINUX" == "true" ]]; then
-            printf '\n> Linux：预编译包在 Ubuntu 26.04 上构建，其他发行版请用源码安装；解开后运行 install.sh，说明见官网文档「Linux」。\n' >> "$NOTES"
+            printf '\n> Linux：预编译包在 Ubuntu 26.04 上构建，其他发行版请用源码安装；解开后运行 install.sh，说明见官网文档「Linux」。RHEL 8/9 另有 IBus-only RPM（AlmaLinux 容器构建，Rust 部分同容器）。\n' >> "$NOTES"
           fi
           if [[ "$ANDROID" == "true" ]]; then
             printf '\n> Android：预览版，功能比桌面版少；APK 只支持 arm64、Android 8.0 及以上，下载后在手机上安装，系统可能要你允许「安装未知应用」。\n' >> "$NOTES"
@@ -321,6 +322,7 @@ jobs:
 
   # deb / rpm：全在容器里编（Rust 部分 Ubuntu 22.04，fcitx5 插件对着 Debian 13 / Fedora 42 各编一份），见 docs/notes/linux-packaging.md。
   # 只挂在 Release 上、不进 releases.json：每种格式两个包（qingjian 与 qingjian-fcitx5），检查更新与官网下载页仍按 tar.gz 认 Linux。
+  # RHEL 8/9 的 IBus-only RPM 另在下面的 linux-rpm-el 出（AlmaLinux 容器，产物 linux-rpm-el8 / linux-rpm-el9）。
   linux-packages:
     needs: prepare
     if: needs.prepare.outputs.linux == 'true'
@@ -355,6 +357,45 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: tools/release/upload-build.sh linux-packages "deb：Debian 13 容器；rpm：Fedora 42 容器；Rust 部分：Ubuntu 22.04 容器" target/linux-pkg/out/*.deb target/linux-pkg/out/*.rpm
+
+  # RHEL 8/9 的 IBus-only RPM：build.sh 自己起 AlmaLinux 容器编（Rust 部分同容器），产物平台名 linux-rpm-el8 / linux-rpm-el9。
+  linux-rpm-el:
+    needs: prepare
+    if: needs.prepare.outputs.linux == 'true'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        el: [8, 9]
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
+        with:
+          toolchain: 1.96.0
+
+      - name: Fetch product data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: tools/release/data-fetch.sh
+
+      # build.sh 自己用 docker 起 AlmaLinux 容器，job 不需要 container:
+      - name: Build RPM
+        run: apps/linux/packaging/build.sh el${{ matrix.el }}
+
+      - name: Smoke-test RPM
+        run: apps/linux/packaging/smoke/run-el.sh almalinux:${{ matrix.el }} el${{ matrix.el }}
+
+      - name: Upload to draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: tools/release/upload-build.sh linux-rpm-el${{ matrix.el }} "RHEL ${{ matrix.el }}（AlmaLinux ${{ matrix.el }}）IBus-only；Rust 部分同容器" target/linux-pkg/out/el${{ matrix.el }}/*.rpm
 
   android:
     needs: prepare
@@ -430,7 +471,7 @@ jobs:
         run: tools/release/upload-build.sh android "$(. /etc/os-release && echo "$PRETTY_NAME"), NDK $NDK_VERSION" target/android-package/*.apk
 
   publish:
-    needs: [prepare, macos, windows, linux, linux-packages, android]
+    needs: [prepare, macos, windows, linux, linux-packages, linux-rpm-el, android]
     # 没选中的平台是 skipped，照样发；有平台失败就停在草稿
     if: ${{ !cancelled() && needs.prepare.result == 'success' && !contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-26.04

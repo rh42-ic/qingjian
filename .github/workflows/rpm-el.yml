@@ -1,0 +1,44 @@
+# 手动打 RHEL 8/9 的 IBus-only RPM（AlmaLinux 容器里构建与自检），产物作为 workflow artifact 留档，不传 Release。
+# 正式发版由 release.yml 的 linux-rpm-el job 承担，这里用于随时验证打包脚本。
+# actions 钉到 commit（注释是对应标签）。
+name: RPM (RHEL 8/9, IBus)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        el: [8, 9]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
+        with:
+          toolchain: 1.96.0
+
+      - name: Fetch product data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: tools/release/data-fetch.sh
+
+      # build.sh 自己用 docker 起 AlmaLinux 容器，job 不需要 container:
+      - name: Build RPM
+        run: apps/linux/packaging/build.sh el${{ matrix.el }}
+
+      - name: Smoke-test RPM
+        run: apps/linux/packaging/smoke/run-el.sh almalinux:${{ matrix.el }} el${{ matrix.el }}
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: qingjian-rpm-el${{ matrix.el }}
+          path: target/linux-pkg/out/el${{ matrix.el }}/*.rpm
+          if-no-files-found: error
