@@ -158,6 +158,8 @@ RUN dnf install -y --setopt=install_weak_deps=False \
   docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e CARGO_HOME=/cargo -e RUSTUP_HOME=/rustup \
     -e "CARGO_TARGET_DIR=/src/target/linux-pkg/el$el/cargo" -v "$root:/src" -v "$cargo_home:/cargo" -v "$rustup_home:/rustup" -w /src \
     "$tag" /cargo/bin/cargo build --release --locked -p qingjian-linux-server -p qingjian-linux-ibus
+  # 每次重建 stage；上次的 root 不清掉，stage_core 的 cp -r 会把资源套成 resources/resources
+  rm -rf "$stage/root" "$stage/rpmbuild" "$stage/rpms"
   stage_core "$stage/root" 0
   # XML 在目标容器里生成：EL8 的 IBus 二进制可能链 libssl.so.1.1，宿主（Ubuntu 26.04）没有。
   # 注意这里要用容器内路径（/src/...），不能用宿主的 $bin。
