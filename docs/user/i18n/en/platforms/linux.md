@@ -1,13 +1,14 @@
 ---
 title: Linux
 order: 2
-description: "Installing Qingjian on Linux (and FreeBSD): the Fcitx5 prebuilt package, installing Fcitx5 and Fcitx4 from source, your first input, updating and uninstalling, and how it differs from the desktop versions."
+description: "Installing Qingjian on Linux (and FreeBSD): the Fcitx5 prebuilt package, deb/rpm packages, installing Fcitx5 / IBus / Fcitx4 from source, your first input, updating and uninstalling, and how it differs from the desktop versions."
 ---
 
-The Linux version of Qingjian runs as an input method in Fcitx5 or Fcitx4, and candidates use Fcitx's own candidate panel. For now it's installed from a terminal, and the background service has to be started by hand after each login.
+The Linux version of Qingjian runs as an input method in Fcitx5, IBus or Fcitx4, and candidates use the framework's own candidate panel. For now it's installed from a terminal; the deb/rpm packages and a source install with `--enable-service` start the background service automatically at login, while the unpack-and-run prebuilt package has to be started by hand after each login.
 
-- On Debian, Ubuntu and Fedora you can install the deb / rpm packages, which start automatically at login; see "deb / rpm packages" below.
-- For Fcitx5 there's a prebuilt package for Ubuntu 26.04; other distributions install from source. Verified with GTK4 and Qt6 apps and Firefox on the GNOME desktop (Wayland) of Ubuntu 26.04.
+- On Debian, Ubuntu and Fedora you can install the deb / rpm packages; on RHEL 8/9 (and AlmaLinux, Rocky Linux) you can install the IBus-only rpm. Both start automatically at login; see "deb / rpm packages" below.
+- For Fcitx5 there's a prebuilt package for Ubuntu 26.04; other distributions use the deb/rpm packages or install from source. Verified with GTK4 and Qt6 apps and Firefox on the GNOME desktop (Wayland) of Ubuntu 26.04.
+- IBus (GNOME's built-in input method framework) works with the deb/rpm packages above (RHEL 8/9 are IBus-only), or install it from source; no need to switch frameworks. Key presses, candidates and committing have been verified, though not every application has been checked individually.
 - For Fcitx4 there's a source install for Ubuntu 22.04, verified with GTK3 text fields.
 - On FreeBSD 15.1, a Fcitx5 source install has been verified in XFCE and KDE Plasma X11 sessions and with Wayland apps under sway.
 
@@ -15,7 +16,7 @@ Local candidates, learning, the local sentence model and the optional AI service
 
 ## Fcitx5 prebuilt package (Ubuntu 26.04)
 
-The prebuilt package is built on Ubuntu 26.04 (x86_64) and tied to the system's Fcitx5 version; on other distributions, use the source install in the next section. First install Fcitx5 and input support for applications:
+The prebuilt package is built on Ubuntu 26.04 (x86_64) and tied to the system's Fcitx5 version; on other distributions, use the deb / rpm packages in the next section or the source install. First install Fcitx5 and input support for applications:
 
 ```sh
 sudo apt install python3 fcitx5 fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5-frontend-qt6 fcitx5-config-qt
@@ -32,9 +33,9 @@ Download the package whose name ends in `linux-x86_64.tar.gz` from the [download
 
 Then add the input method as described in [Your first input](#Your-first-input) below.
 
-## deb / rpm packages (Debian, Ubuntu, Fedora)
+## deb / rpm packages (Debian, Ubuntu, Fedora, RHEL 8/9)
 
-The [GitHub Release](https://github.com/qingjian-team/qingjian/releases/latest) also has deb and rpm packages, two of each: `qingjian` is Qingjian itself (background service, IBus front end and dictionaries), and `qingjian-fcitx5` is the Fcitx5 add-on. With IBus install only the first; with Fcitx5 install both. Qingjian then starts automatically when you log in, no terminal needed.
+The [GitHub Release](https://github.com/qingjian-team/qingjian/releases/latest) also has deb and rpm packages. On Debian / Ubuntu / Fedora there are two of each: `qingjian` is Qingjian itself (background service, IBus front end and dictionaries), and `qingjian-fcitx5` is the Fcitx5 add-on; with IBus install only the first, with Fcitx5 install both. On RHEL 8/9 there is only the IBus-only `qingjian` main package, with no Fcitx5 add-on. Qingjian then starts automatically when you log in, no terminal needed.
 
 ```sh
 # Debian / Ubuntu
@@ -42,11 +43,15 @@ sudo apt install ./qingjian_<version>_amd64.deb ./qingjian-fcitx5_<version>_amd6
 
 # Fedora 42 and later
 sudo dnf install ./qingjian-<version>-1.fc42.x86_64.rpm ./qingjian-fcitx5-<version>-1.fc42.x86_64.rpm
+
+# RHEL 8/9, AlmaLinux, Rocky Linux (IBus-only; pick el8 / el9 for the system)
+sudo dnf install ./qingjian-<version>-1.el8.x86_64.rpm
 ```
 
 - `qingjian` installs on Debian 12 and Ubuntu 22.04 or later; `qingjian-fcitx5` needs a recent Fcitx5 and only installs on Debian 13, Ubuntu 25.04, Fedora 42 or later. On older systems use IBus or the source install.
+- RHEL 8/9 (and AlmaLinux, Rocky Linux) can install the matching rpm directly; on EL8 log out and back in once, on EL9 the installer tries to restart the Qingjian service.
 - With IBus, log out and back in once before Qingjian shows up.
-- To uninstall: `sudo apt remove qingjian qingjian-fcitx5` or `sudo dnf remove qingjian qingjian-fcitx5`. Settings and learned data are kept.
+- To uninstall: `sudo apt remove qingjian qingjian-fcitx5` or `sudo dnf remove qingjian qingjian-fcitx5`; on RHEL 8/9 with only the main package, use `sudo dnf remove qingjian`. Settings and learned data are kept.
 
 ## Fcitx5 source install
 
@@ -110,9 +115,17 @@ When you switch to Qingjian, the input method icon in the tray shows the Qingjia
 
 ## Your first input
 
+With Fcitx:
+
 1. Restart Fcitx, or log out and back in.
 2. Open the Fcitx configuration tool, untick "Only Show Current Language", and add 青简 (Qingjian).
-3. Switch to Qingjian, type `nihao` and press Space to get 你好.
+
+With IBus:
+
+1. Log out and back in once. IBus only reads the input method list at login, so Qingjian won't show up before that.
+2. Add 青简 in Settings → Keyboard, or run `ibus engine qingjian`.
+
+Switch to Qingjian, type `nihao` and press Space to get 你好.
 
 Tap `Shift` to switch between Chinese and English; for keys see the [Key reference](../getting-started/keys.md). Settings are under 青简设置 (Qingjian Settings) in the application menu.
 Closing the terminal you started Qingjian from stops Qingjian; after your next login, run `~/.local/bin/qingjian-linux-server` again.
@@ -141,4 +154,4 @@ apps/linux/scripts/uninstall.sh
 apps/linux/scripts/uninstall.sh --prefix /absolute/path/used/when/installing
 ```
 
-For the prebuilt package, use the package's `./uninstall.sh`. After uninstalling, close the terminal running Qingjian yourself and restart Fcitx. Uninstalling keeps your settings, personal dictionaries, learning data and other input methods.
+For the prebuilt package, use the package's `./uninstall.sh`. Uninstalling removes the autostart entry; the deb/rpm packages and EL9 stop the running service, while on EL8 log out or run `systemctl --user stop qingjian-server`. Close the terminal running Qingjian yourself and restart Fcitx. Uninstalling keeps your settings, personal dictionaries, learning data and other input methods.
