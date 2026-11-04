@@ -159,9 +159,10 @@ RUN dnf install -y --setopt=install_weak_deps=False \
     -e "CARGO_TARGET_DIR=/src/target/linux-pkg/el$el/cargo" -v "$root:/src" -v "$cargo_home:/cargo" -v "$rustup_home:/rustup" -w /src \
     "$tag" /cargo/bin/cargo build --release --locked -p qingjian-linux-server -p qingjian-linux-ibus
   stage_core "$stage/root" 0
-  # XML 在目标容器里生成：EL8 的 IBus 二进制可能链 libssl.so.1.1，宿主（Ubuntu 26.04）没有
+  # XML 在目标容器里生成：EL8 的 IBus 二进制可能链 libssl.so.1.1，宿主（Ubuntu 26.04）没有。
+  # 注意这里要用容器内路径（/src/...），不能用宿主的 $bin。
   docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -v "$root:/src" -w /src "$tag" \
-    "$bin/qingjian-linux-ibus" --ibus-xml /usr/bin/qingjian-linux-ibus \
+    "/src/target/linux-pkg/el$el/cargo/release/qingjian-linux-ibus" --ibus-xml /usr/bin/qingjian-linux-ibus \
     > "$stage/root/usr/share/ibus/component/qingjian.xml"
   install -Dm644 "$root/LICENSE" "$stage/root/usr/share/licenses/qingjian/LICENSE"
   in_container "$tag" EL="$el" RPM_VERSION="$upstream" RPM_RELEASE="$rpm_release" bash /src/apps/linux/packaging/rpm/el/assemble.sh
