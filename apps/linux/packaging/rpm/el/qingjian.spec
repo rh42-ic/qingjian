@@ -24,7 +24,7 @@ Recommends:     ibus-gtk3
 
 %description
 跨平台拼音输入法。本包是引擎（Server，systemd 用户服务）、IBus 前端与随包词库。
-Server 装完就起；IBus 要重新登录一次（或 ibus restart）才看得到青简。
+Server 随用户登录自启（EL9 装完也会尝试重启当前用户的服务）；IBus 要重新登录一次（或 ibus restart）才看得到青简。
 
 %install
 cp -a %{qj_root}/. %{buildroot}/
@@ -52,7 +52,7 @@ done
 %else
 # EL8 的 systemd 239 不支持 user@.host，不能替已登录用户重载；提示重新登录
 loginctl list-users --no-legend 2>/dev/null | while read -r _ user _; do
-  echo "用户 $user：重新登录，或运行 systemctl --user restart qingjian-server" >&2
+  echo "用户 $user：重新登录，或运行 systemctl --user daemon-reload && systemctl --user restart qingjian-server" >&2
 done
 %endif
 
