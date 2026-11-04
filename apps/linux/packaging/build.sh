@@ -45,7 +45,9 @@ mkdir -p "$out"
 image() {
   local name=$1 dockerfile=$2 tag
   tag="qingjian-pkg-$name:$(printf '%s' "$dockerfile" | sha256sum | cut -c1-12)"
-  docker image inspect "$tag" >/dev/null 2>&1 || printf '%s' "$dockerfile" | docker build -q -t "$tag" - >/dev/null
+  if ! docker image inspect "$tag" >/dev/null 2>&1; then
+    printf '%s' "$dockerfile" | docker build --progress=plain -t "$tag" - || return 1
+  fi
   echo "$tag"
 }
 # in_container 镜像 [KEY=值…] 命令…：以本机用户身份跑，产物不会变成 root 的；仓库挂在 /src
