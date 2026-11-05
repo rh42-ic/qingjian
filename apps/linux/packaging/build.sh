@@ -163,7 +163,7 @@ build_el() {
       sqlite-devel kernel-headers'
   if ((fcitx4)); then
     # RHEL 8 的 fcitx4 在 EPEL；只有可选子包用它，主包不依赖 EPEL。
-    install='RUN dnf install -y epel-release && dnf install -y --setopt=install_weak_deps=False \
+    install='RUN dnf install -y epel-release && dnf install -y --enablerepo=powertools --setopt=install_weak_deps=False \
       bash findutils grep sed gawk tar gzip bzip2 xz unzip which \
       gcc gcc-c++ make cmake pkgconf-pkg-config openssl-devel openssl \
       rpm-build redhat-rpm-config ca-certificates git-core perl \
