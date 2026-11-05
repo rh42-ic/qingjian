@@ -12,8 +12,12 @@ case $1 in
        echo "装上：$(dpkg-query -W -f='${Package} ${Version}  ' qingjian qingjian-fcitx5)" ;;
   dnf) dnf install -y -q systemd >/dev/null 2>&1
        if [ "$mode" = ibus-only ]; then
-         dnf install -y -q /pkgs/qingjian-*.rpm >/dev/null 2>&1 || { dnf install -y /pkgs/qingjian-*.rpm 2>&1 | tail -6; exit 1; }
+         dnf install -y -q /pkgs/qingjian-[0-9]*.rpm >/dev/null 2>&1 || { dnf install -y /pkgs/qingjian-[0-9]*.rpm 2>&1 | tail -6; exit 1; }
          echo "装上：$(rpm -q qingjian ibus | tr '\n' ' ')"
+       elif [ "$mode" = fcitx4 ]; then
+         dnf install -y -q epel-release >/dev/null 2>&1 || { dnf install -y epel-release 2>&1 | tail -6; exit 1; }
+         dnf install -y -q /pkgs/qingjian-[0-9]*.rpm /pkgs/qingjian-fcitx4-*.rpm >/dev/null 2>&1 || { dnf install -y /pkgs/qingjian-[0-9]*.rpm /pkgs/qingjian-fcitx4-*.rpm 2>&1 | tail -6; exit 1; }
+         echo "装上：$(rpm -q qingjian qingjian-fcitx4 fcitx | tr '\n' ' ')"
        else
          dnf install -y -q /pkgs/*.rpm >/dev/null 2>&1 || { dnf install -y /pkgs/*.rpm 2>&1 | tail -6; exit 1; }
          echo "装上：$(rpm -q qingjian qingjian-fcitx5 | tr '\n' ' ')"
@@ -26,6 +30,8 @@ if [ "$mode" = ibus-only ]; then
     apt) dpkg-query -W qingjian ibus >/dev/null 2>&1 || fail "qingjian 或 ibus 没装上" ;;
     *) rpm -q qingjian ibus >/dev/null 2>&1 || fail "qingjian 或 ibus 没装上" ;;
   esac
+elif [ "$mode" = fcitx4 ]; then
+  rpm -q qingjian qingjian-fcitx4 fcitx >/dev/null 2>&1 || fail "qingjian / qingjian-fcitx4 / fcitx 没装上"
 fi
 wants=/etc/systemd/user/default.target.wants/qingjian-server.service
 echo "自启登记：$(readlink $wants || echo 没有)"
@@ -36,6 +42,12 @@ echo "IBus 组件：$xml，exec=${exec_path:-没有}"
 [ -x "$exec_path" ] || fail "IBus 组件不在或 exec 指向的文件不存在"
 if [ "$mode" = ibus-only ]; then
   echo "插件：ibus-only，跳过 fcitx5 插件检查"
+elif [ "$mode" = fcitx4 ]; then
+  so=$(ls /usr/lib*/fcitx/fcitx-qingjian.so /usr/lib/*/fcitx/fcitx-qingjian.so 2>/dev/null | head -1)
+  missing=$(ldd "$so" | grep -c 'not found' || true)
+  echo "Fcitx4 插件：$so，缺库：$missing"
+  [ -n "$so" ] && [ "$missing" = 0 ] || fail "Fcitx4 插件不在或缺库"
+  [ -f /usr/share/fcitx/addon/fcitx-qingjian.conf ] || fail "Fcitx4 addon 配置不在"
 else
   so=$(ls /usr/lib*/fcitx5/qingjian.so /usr/lib/*/fcitx5/qingjian.so 2>/dev/null | head -1)
   missing=$(ldd "$so" | grep -c 'not found' || true)
@@ -59,6 +71,8 @@ echo "模型：${model:-没等到日志}"
 grep -qs "本地整句模型已加载并预热" $logs/* || fail "本地整句模型没加载上"
 if [ "$mode" = ibus-only ]; then
   case $1 in apt) apt-get remove -y -qq qingjian >/dev/null 2>&1 ;; *) rpm -e qingjian ;; esac
+elif [ "$mode" = fcitx4 ]; then
+  case $1 in apt) apt-get remove -y -qq qingjian-fcitx4 qingjian >/dev/null 2>&1 ;; *) rpm -e qingjian-fcitx4 qingjian ;; esac
 else
   case $1 in apt) apt-get remove -y -qq qingjian-fcitx5 qingjian >/dev/null 2>&1 ;; *) rpm -e qingjian-fcitx5 qingjian ;; esac
 fi

@@ -1,4 +1,4 @@
-# 青简的 RPM spec（RHEL 8/9 专用，IBus-only）：只出一个 qingjian 主包，
+# 青简的 RPM spec（RHEL 8/9/10 专用，IBus-only）：只出一个 qingjian 主包，
 # 含 Server、IBus 前端、词库、systemd 用户服务、IBus XML、图标与 LICENSE。
 # RHEL 没有 fcitx5，所以这里不建 fcitx5 子包；需要 fcitx5 的发行版用 rpm/qingjian.spec。
 #
@@ -24,7 +24,19 @@ Recommends:     ibus-gtk3
 
 %description
 跨平台拼音输入法。本包是引擎（Server，systemd 用户服务）、IBus 前端与随包词库。
-Server 随用户登录自启（EL9 装完也会尝试重启当前用户的服务）；IBus 要重新登录一次（或 ibus restart）才看得到青简。
+Server 随用户登录自启（EL9/EL10 装完也会尝试重启当前用户的服务）；IBus 要重新登录一次（或 ibus restart）才看得到青简。
+
+%if 0%{?qj_fcitx4}
+# RHEL 8 的 Fcitx4 来自 EPEL；这是可选子包，主包不依赖它，也不会自动装上。
+%package fcitx4
+Summary:        青简输入法的 Fcitx4 插件
+Requires:       %{name}%{?_isa} = %{version}-%{release}
+Requires:       fcitx
+
+%description fcitx4
+让 Fcitx4 能用青简；引擎在 qingjian 包里。RHEL 8 的 Fcitx4 由 EPEL 提供，装本包前先启用 EPEL；
+只用 IBus 的用户不需要装它。
+%endif
 
 %install
 cp -a %{qj_root}/. %{buildroot}/
@@ -44,28 +56,28 @@ getent passwd | while IFS=: read -r name _ uid _ _ home _; do
     echo "  以该用户卸掉那一份——源码安装的：apps/linux/scripts/uninstall.sh" >&2
   fi
 done
-%if "%{?qj_el}" == "9"
-loginctl list-users --no-legend 2>/dev/null | while read -r _ user _; do
-  systemctl --user -M "$user@.host" daemon-reload >/dev/null 2>&1 || :
-  systemctl --user -M "$user@.host" restart qingjian-server.service >/dev/null 2>&1 || :
-done
-%else
+%if "%{?qj_el}" == "8"
 # EL8 的 systemd 239 不支持 user@.host，不能替已登录用户重载；提示重新登录
 loginctl list-users --no-legend 2>/dev/null | while read -r _ user _; do
   echo "用户 $user：重新登录，或运行 systemctl --user daemon-reload && systemctl --user restart qingjian-server" >&2
+done
+%else
+loginctl list-users --no-legend 2>/dev/null | while read -r _ user _; do
+  systemctl --user -M "$user@.host" daemon-reload >/dev/null 2>&1 || :
+  systemctl --user -M "$user@.host" restart qingjian-server.service >/dev/null 2>&1 || :
 done
 %endif
 
 %preun
 if [ $1 -eq 0 ]; then
   systemctl --global disable qingjian-server.service >/dev/null 2>&1 || :
-%if "%{?qj_el}" == "9"
+%if "%{?qj_el}" == "8"
+  # EL8 不逐用户 stop：systemd 239 没有 user@.host，下次注销时随会话退出
+  :
+%else
   loginctl list-users --no-legend 2>/dev/null | while read -r _ user _; do
     systemctl --user -M "$user@.host" stop qingjian-server.service >/dev/null 2>&1 || :
   done
-%else
-  # EL8 不逐用户 stop：systemd 239 没有 user@.host，下次注销时随会话退出
-  :
 %endif
 fi
 
@@ -77,3 +89,11 @@ fi
 /usr/share/ibus/component/qingjian.xml
 /usr/lib/systemd/user/qingjian-server.service
 /usr/share/icons/hicolor/*/apps/qingjian.png
+
+%if 0%{?qj_fcitx4}
+%files fcitx4
+%{_libdir}/fcitx/fcitx-qingjian.so
+/usr/share/fcitx/addon/fcitx-qingjian.conf
+/usr/share/fcitx/imicon/qingjian.png
+/usr/share/icons/hicolor/48x48/apps/fcitx-qingjian.png
+%endif

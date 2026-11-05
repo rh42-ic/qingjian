@@ -1,7 +1,7 @@
-# 手动打 RHEL 8/9 的 IBus-only RPM（AlmaLinux 容器里构建与自检），产物作为 workflow artifact 留档，不传 Release。
+# 手动打 RHEL 8/9/10 的 RPM（AlmaLinux 容器里构建与自检；EL8 另带可选 Fcitx4 子包），产物作为 workflow artifact 留档，不传 Release。
 # 正式发版由 release.yml 的 linux-rpm-el job 承担，这里用于随时验证打包脚本。
 # actions 钉到 commit（注释是对应标签）。
-name: RPM (RHEL 8/9, IBus)
+name: RPM (RHEL 8/9/10)
 
 on:
   workflow_dispatch:
@@ -15,7 +15,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        el: [8, 9]
+        include:
+          - el: 8
+            fcitx4: 1
+          - el: 9
+            fcitx4: 0
+          - el: 10
+            fcitx4: 0
+    env:
+      QJ_FCITX4: ${{ matrix.fcitx4 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # 打 Linux 发行包：deb（Debian 13 / Ubuntu 25.04+）、rpm（Fedora 42+）、
-# el8 / el9（RHEL 8/9 及 AlmaLinux、Rocky 等重建版，IBus-only）。
+# el8 / el9 / el10（RHEL 8/9/10 及 AlmaLinux、Rocky 等重建版，IBus-only）。
 #
 #   apps/linux/packaging/build.sh               两种都打（deb rpm）
 #   apps/linux/packaging/build.sh deb rpm       只打给出的几种
 #   apps/linux/packaging/build.sh el8           只打 RHEL 8 的 IBus-only rpm
-#   apps/linux/packaging/build.sh el8 el9       两代 EL 都打
-#   apps/linux/packaging/build.sh deb rpm el8 el9   全部都打
+#   apps/linux/packaging/build.sh el8 el9 el10  三代 EL 都打
+#   apps/linux/packaging/build.sh deb rpm el8 el9 el10   全部都打
 #   QINGJIAN_SAMPLE=1 apps/linux/packaging/build.sh   只带样例词库（没有产品数据时）
 #
-# 产物在 target/linux-pkg/out/（el8/el9 在各自的子目录）。全部在容器里编，只要 docker（免 sudo）：
+# 产物在 target/linux-pkg/out/（el8/el9/el10 在各自的子目录）。全部在容器里编，只要 docker（免 sudo）：
 # - Rust 的 Server 与 IBus 前端在 Ubuntu 22.04 里编一次（glibc 2.35），deb/rpm 共用，老一点的发行版也跑得起来；
-# - EL8/EL9 不复用 Ubuntu 产物：glibc 太新，必须在各自的 AlmaLinux 容器里编（用宿主的 rustup 工具链）；
+# - EL 各代不复用 Ubuntu 产物：EL8 的 glibc 2.28 跑不了 GLIBC_2.34，EL9/EL10 也各自对目标发行版的 OpenSSL/库编；都在对应 AlmaLinux 容器里编（用宿主的 rustup 工具链）；
 # - fcitx5 插件要对着目标发行版自己的 fcitx5 编（CMakeLists 要 5.1.8+），deb 在 Debian 13、rpm 在 Fedora 42 里编；
-#   EL 没有 fcitx5，el8/el9 只出 IBus-only 的 qingjian 主包，不建 qingjian-fcitx5 子包。
+#   EL 没有 fcitx5，el8/el9/el10 只出 IBus-only 的 qingjian 主包，不建 qingjian-fcitx5 子包。
 # 每种包里 Server 与数据一个包、fcitx5 插件一个包（IBus 前端没有额外依赖，跟 Server 同包；EL 只有这一包）。
 # 设计与限制见 docs/notes/linux-packaging.md；打完用 smoke/run.sh（deb/rpm）或 smoke/run-el.sh（EL）在干净容器里装一遍自检。
 set -euo pipefail
@@ -23,7 +23,7 @@ out="$work/out"
 formats=("$@")
 ((${#formats[@]})) || formats=(deb rpm)
 for format in "${formats[@]}"; do
-  case "$format" in deb|rpm|el8|el9) ;; *) echo "只认 deb / rpm / el8 / el9：$format" >&2; exit 2 ;; esac
+  case "$format" in deb|rpm|el8|el9|el10) ;; *) echo "只认 deb / rpm / el8 / el9 / el10：$format" >&2; exit 2 ;; esac
 done
 command -v docker >/dev/null || { echo '要 docker' >&2; exit 1; }
 
@@ -62,7 +62,7 @@ in_container() {
 cargo_home=${CARGO_HOME:-$HOME/.cargo}
 rustup_home=${RUSTUP_HOME:-$HOME/.rustup}
 
-# deb/rpm 共用 Ubuntu 22.04 里的这一份 Rust 产物；只打 el8/el9 时不要白编一遍
+# deb/rpm 共用 Ubuntu 22.04 里的这一份 Rust 产物；只打 el8/el9/el10 时不要白编一遍
 need_ubuntu_rust=0
 for format in "${formats[@]}"; do
   case "$format" in deb|rpm) need_ubuntu_rust=1 ;; esac
@@ -136,25 +136,44 @@ RUN dnf install -y --setopt=install_weak_deps=False rpm-build cmake gcc-c++ make
   cp "$stage"/rpms/x86_64/*.rpm "$out/"
 }
 
-# RHEL 8/9 只有 IBus，没有 fcitx5：只出 qingjian 主包。EL 的 glibc 比 Ubuntu 22.04 老，
+# RHEL 8/9/10 只有 IBus，没有 fcitx5：只出 qingjian 主包。EL 各代的 glibc/OpenSSL 与 Ubuntu 22.04 不同，
 # 不能复用那边的产物，必须在对应 AlmaLinux 容器里重新编 Rust。
 # 这里用的是宿主 rustup 的官方工具链（官方 linux-gnu 产物按 glibc 2.17 构建，预期 EL8 能跑）。
-# 万一在 EL8 上因 glibc 版本不行，fallback 是在镜像内装 rustup 1.96.0 再编；先按宿主工具链实现。
+# 万一在某一代 EL 上因 glibc 版本不行，fallback 是在镜像内装 rustup 1.96.0 再编；先按宿主工具链实现。
 build_el() {
   local el=$1
-  echo "==> el$el（AlmaLinux $el，IBus-only）"
+  local fcitx4=0
+  if [[ "${QJ_FCITX4:-0}" == 1 ]]; then
+    if [[ "$el" != 8 ]]; then
+      echo 'QJ_FCITX4=1 只支持 el8：RHEL 9/10 没有 fcitx4' >&2
+      exit 2
+    fi
+    fcitx4=1
+  fi
+  echo "==> el$el（AlmaLinux $el，IBus-only${fcitx4:+ + Fcitx4}）"
   local tag stage="$work/el$el"
   bin="$stage/cargo/release"
-  tag=$(image "el$el" "FROM almalinux:$el
-# 基础镜像自带 coreutils-single / curl-minimal；不要再装 coreutils / curl，会冲突。
-RUN dnf install -y --setopt=install_weak_deps=False \
+  # 基础镜像自带 coreutils-single / curl-minimal；不要再装 coreutils / curl，会冲突。
+  local install='RUN dnf install -y --setopt=install_weak_deps=False \
       bash findutils grep sed gawk tar gzip bzip2 xz unzip which \
       gcc gcc-c++ make cmake pkgconf-pkg-config openssl-devel openssl \
       rpm-build redhat-rpm-config ca-certificates git-core perl \
       binutils file patch diffutils cpio shadow-utils util-linux procps-ng \
       python3 systemd autoconf automake libtool zlib-devel \
-      sqlite-devel kernel-headers && dnf clean all")
-  # 宿主的工具链与 crate 缓存照旧挂进去；CARGO_TARGET_DIR 指到本代的 stage，免得 EL8/EL9 互相覆盖
+      sqlite-devel kernel-headers'
+  if ((fcitx4)); then
+    # RHEL 8 的 fcitx4 在 EPEL；只有可选子包用它，主包不依赖 EPEL。
+    install='RUN dnf install -y epel-release && dnf install -y --setopt=install_weak_deps=False \
+      bash findutils grep sed gawk tar gzip bzip2 xz unzip which \
+      gcc gcc-c++ make cmake pkgconf-pkg-config openssl-devel openssl \
+      rpm-build redhat-rpm-config ca-certificates git-core perl \
+      binutils file patch diffutils cpio shadow-utils util-linux procps-ng \
+      python3 systemd autoconf automake libtool zlib-devel \
+      sqlite-devel kernel-headers fcitx-devel json-devel libX11-devel libXres-devel'
+  fi
+  tag=$(image "el$el" "FROM almalinux:$el
+$install && dnf clean all")
+  # 宿主的工具链与 crate 缓存照旧挂进去；CARGO_TARGET_DIR 指到本代的 stage，免得各代互相覆盖
   docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e CARGO_HOME=/cargo -e RUSTUP_HOME=/rustup \
     -e "CARGO_TARGET_DIR=/src/target/linux-pkg/el$el/cargo" -v "$root:/src" -v "$cargo_home:/cargo" -v "$rustup_home:/rustup" -w /src \
     "$tag" /cargo/bin/cargo build --release --locked -p qingjian-linux-server -p qingjian-linux-ibus
@@ -167,7 +186,7 @@ RUN dnf install -y --setopt=install_weak_deps=False \
     "/src/target/linux-pkg/el$el/cargo/release/qingjian-linux-ibus" --ibus-xml /usr/bin/qingjian-linux-ibus \
     > "$stage/root/usr/share/ibus/component/qingjian.xml"
   install -Dm644 "$root/LICENSE" "$stage/root/usr/share/licenses/qingjian/LICENSE"
-  in_container "$tag" EL="$el" RPM_VERSION="$upstream" RPM_RELEASE="$rpm_release" bash /src/apps/linux/packaging/rpm/el/assemble.sh
+  in_container "$tag" EL="$el" QJ_FCITX4="$fcitx4" RPM_VERSION="$upstream" RPM_RELEASE="$rpm_release" bash /src/apps/linux/packaging/rpm/el/assemble.sh
   rm -rf "$out/el$el"
   mkdir -p "$out/el$el"
   cp "$stage"/rpms/*/*.rpm "$out/el$el/"
@@ -175,7 +194,7 @@ RUN dnf install -y --setopt=install_weak_deps=False \
 
 for format in "${formats[@]}"; do
   case "$format" in
-    el8|el9) build_el "${format#el}" ;;
+    el8|el9|el10) build_el "${format#el}" ;;
     *) "build_$format" ;;
   esac
 done
