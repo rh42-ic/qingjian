@@ -4343,7 +4343,7 @@ dependencies = [
 
 [[package]]
 name = "qingjian-linux-server"
-version = "0.3.3-dev"
+version = "0.3.3"
 dependencies = [
  "libc",
  "qingjian-core",
