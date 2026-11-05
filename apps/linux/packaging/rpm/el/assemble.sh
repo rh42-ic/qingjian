@@ -31,7 +31,7 @@ strip --strip-unneeded "$root/usr/bin/qingjian-linux-server" "$root/usr/bin/qing
 [[ "$fcitx4" == 0 ]] || strip --strip-unneeded "$root$libdir/fcitx/fcitx-qingjian.so"
 # 宿主机 umask 是 002 时拷出来的是 664 / 775；/usr/bin 下的程序保留可执行
 find "$root" -type d -exec chmod 755 {} +
-find "$root" -type f ! -path '*/usr/bin/*' -exec chmod 644 {} +
+find "$root" -type f ! -path '*/usr/bin/*' ! -name '*.so' -exec chmod 644 {} +
 
 define=()
 [[ "$fcitx4" == 0 ]] || define+=(--define "qj_fcitx4 1")
