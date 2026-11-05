@@ -86,7 +86,7 @@ Session *Engine::current() {
     if (session) session->context = ic;
     return session;
 }
-bool Engine::live(Session *session) const { return sessions_.contains(session); }
+bool Engine::live(Session *session) const { return sessions_.find(session) != sessions_.end(); }
 std::string Engine::identity(const Session *session) const { return "fcitx4-" + std::to_string(session->id); }
 void Engine::flushRetired() {
     if (retireTimer_) FcitxInstanceRemoveTimeoutById(instance_, retireTimer_);
