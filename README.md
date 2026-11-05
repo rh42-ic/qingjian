@@ -34,7 +34,7 @@ https://github.com/user-attachments/assets/d145fde9-a641-4543-8b15-dd7a2685de3d
 ## 下载与开始使用
 
 - **macOS、Windows**：[下载青简](https://qingjian.app/download)；安装步骤见[使用文档](https://qingjian.app/docs/getting-started/install)。
-- **Linux**：提供 Fcitx5 / IBus / Fcitx4 前端，以及 Debian / Ubuntu / Fedora 的 deb/rpm 与 RHEL 8/9 的 IBus-only rpm；使用系统默认候选面板，详见 [Linux 安装说明](https://qingjian.app/docs/platforms/linux)。
+- **Linux**：提供 Fcitx5 / IBus / Fcitx4 前端，以及 Debian / Ubuntu / Fedora 的 deb/rpm 与 RHEL 8/9/10 的 rpm；使用系统默认候选面板，详见 [Linux 安装说明](https://qingjian.app/docs/platforms/linux)。
 - **Android**：预览版，功能比桌面版少；arm64 的 APK 在 [GitHub Releases](https://github.com/qingjian-team/qingjian/releases/latest) 下载，启用步骤见 [Android 说明](https://qingjian.app/docs/platforms/android)，从源码构建见 [apps/android](apps/android/README.md)。
 
 **官方发布渠道**：目前只有以下几个，其他地方的「青简」都不是官方发布的。

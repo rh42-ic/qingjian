@@ -6,9 +6,9 @@ description: 在 Linux（以及 FreeBSD）上安装青简：Fcitx5 预编译包�
 
 青简 Linux 版作为 Fcitx5、IBus 或 Fcitx4 的一个输入法运行，候选使用输入法框架自己的候选面板。目前需要在终端中安装；deb/rpm 包与带 `--enable-service` 的源码安装可以让青简的后台服务随登录自动启动，解压即用的预编译包要每次登录后手动启动。
 
-- Debian、Ubuntu、Fedora 可以装 deb / rpm 包；RHEL 8/9（及 AlmaLinux、Rocky Linux）可以装 IBus-only 的 rpm 包。都随登录自动启动，见下文「deb / rpm 包」一节。
+- Debian、Ubuntu、Fedora 可以装 deb / rpm 包；RHEL 8/9/10（及 AlmaLinux、Rocky Linux）可以装 rpm 包；主包走 IBus，RHEL 8 另有一个可选的 Fcitx4 插件包。都随登录自动启动，见下文「deb / rpm 包」一节。
 - Fcitx5 提供 Ubuntu 26.04 预编译包，其他发行版用 deb/rpm 或源码安装。已验证 Ubuntu 26.04 的 GNOME 桌面（Wayland）上 GTK4、Qt6 应用与 Firefox。
-- IBus（GNOME 自带的输入法框架）可以装上面的 deb/rpm（RHEL 8/9 是 IBus-only），也可以用源码安装，不用换框架。已验证按键、候选与上屏，各类应用里的表现尚未逐个验证。
+- IBus（GNOME 自带的输入法框架）可以装上面的 deb/rpm（RHEL 8/9/10 主包走 IBus），也可以用源码安装，不用换框架。已验证按键、候选与上屏，各类应用里的表现尚未逐个验证。
 - Fcitx4 提供 Ubuntu 22.04 源码安装，已验证 GTK3 文本框输入。
 - FreeBSD 15.1 上用 Fcitx5 源码安装验证过 XFCE 与 KDE Plasma 的 X11 会话，以及 sway 下的 Wayland 应用。
 
@@ -33,9 +33,9 @@ sudo apt install python3 fcitx5 fcitx5-frontend-gtk3 fcitx5-frontend-gtk4 fcitx5
 
 之后按下文[首次输入](#首次输入)添加输入法。
 
-## deb / rpm 包（Debian、Ubuntu、Fedora、RHEL 8/9）
+## deb / rpm 包（Debian、Ubuntu、Fedora、RHEL 8/9/10）
 
-[GitHub Release](https://github.com/qingjian-team/qingjian/releases/latest) 上另有 deb 与 rpm 包。Debian / Ubuntu / Fedora 每种两个：`qingjian` 是青简本体（后台服务、IBus 前端与词库），`qingjian-fcitx5` 是 Fcitx5 插件；用 IBus 只装前一个，用 Fcitx5 两个都装。RHEL 8/9 只有 IBus 版的 `qingjian` 主包，没有 fcitx5 插件。装好后青简随登录自动启动，不用开终端。
+[GitHub Release](https://github.com/qingjian-team/qingjian/releases/latest) 上另有 deb 与 rpm 包。Debian / Ubuntu / Fedora 每种两个：`qingjian` 是青简本体（后台服务、IBus 前端与词库），`qingjian-fcitx5` 是 Fcitx5 插件；用 IBus 只装前一个，用 Fcitx5 两个都装。RHEL 8/9/10 的 `qingjian` 主包走 IBus，没有 fcitx5 插件；RHEL 8 另有可选的 `qingjian-fcitx4` 插件包（Fcitx4 由 EPEL 提供，主包不依赖它）。装好后青简随登录自动启动，不用开终端。
 
 ```sh
 # Debian / Ubuntu
@@ -44,14 +44,18 @@ sudo apt install ./qingjian_<版本>_amd64.deb ./qingjian-fcitx5_<版本>_amd64.
 # Fedora 42 及以后
 sudo dnf install ./qingjian-<版本>-1.fc42.x86_64.rpm ./qingjian-fcitx5-<版本>-1.fc42.x86_64.rpm
 
-# RHEL 8/9、AlmaLinux、Rocky Linux（IBus-only；el8 / el9 按系统选）
+# RHEL 8/9/10、AlmaLinux、Rocky Linux（主包走 IBus；el8 / el9 / el10 按系统选）
 sudo dnf install ./qingjian-<版本>-1.el8.x86_64.rpm
+
+# RHEL 8 想用 Fcitx4（可选；先启用 EPEL）
+sudo dnf install epel-release
+sudo dnf install ./qingjian-<版本>-1.el8.x86_64.rpm ./qingjian-fcitx4-<版本>-1.el8.x86_64.rpm
 ```
 
 - `qingjian` 在 Debian 12、Ubuntu 22.04 及以后都能装；`qingjian-fcitx5` 要较新的 Fcitx5，只有 Debian 13、Ubuntu 25.04、Fedora 42 及以后装得上，更早的系统请用 IBus 或源码安装。
-- RHEL 8/9（及 AlmaLinux、Rocky Linux）可以直接装对应的 rpm；EL8 装完要注销重新登录一次，EL9 装完会尝试重启青简服务。
+- RHEL 8/9/10（及 AlmaLinux、Rocky Linux）可以直接装对应的 rpm；EL8 装完要注销重新登录一次，EL9/EL10 装完会尝试重启青简服务。RHEL 8 的 Fcitx4 插件是可选的，不装也能用 IBus。
 - IBus 装完要重新登录一次才看得到青简。
-- 卸载：`sudo apt remove qingjian qingjian-fcitx5` 或 `sudo dnf remove qingjian qingjian-fcitx5`；RHEL 8/9 只装了主包时用 `sudo dnf remove qingjian`。设置与学习数据保留。
+- 卸载：`sudo apt remove qingjian qingjian-fcitx5` 或 `sudo dnf remove qingjian qingjian-fcitx5`；RHEL 8/9/10 只装了主包时用 `sudo dnf remove qingjian`，装过 Fcitx4 插件的再加 `qingjian-fcitx4`。设置与学习数据保留。
 
 ## Fcitx5 与 IBus 源码安装
 
@@ -159,5 +163,5 @@ apps/linux/scripts/uninstall.sh
 apps/linux/scripts/uninstall.sh --prefix /安装时的绝对路径
 ```
 
-预编译包用包里的 `./uninstall.sh`。卸载会清掉自启登记；deb/rpm 与 EL9 会停掉正在跑的服务，EL8 要等注销或手动 `systemctl --user stop qingjian-server`。手动启动的要自己关掉那个终端。之后重启 Fcitx，用 IBus 的注销后重新登录一次。卸载保留设置、个人词库、学习数据与其他输入法。
+预编译包用包里的 `./uninstall.sh`。卸载会清掉自启登记；deb/rpm 与 EL9/EL10 会停掉正在跑的服务，EL8 要等注销或手动 `systemctl --user stop qingjian-server`。手动启动的要自己关掉那个终端。之后重启 Fcitx，用 IBus 的注销后重新登录一次。卸载保留设置、个人词库、学习数据与其他输入法。
 系统里另外装过青简（比如旧版的 deb 包）时，重新登录后以源码安装的这份为准；想换回那一份，运行卸载脚本后再重新登录。

@@ -20,7 +20,7 @@
 | 按应用设置（`[apps]`） | 没有：IBus 这条路上还没找到拿应用标识的办法，`OpenSession` 的 `app` 报的是 `None` |
 | 安装脚本认框架、Server 自启 | 通了：`scripts/install.sh --frontend auto` 装能装的那几支，systemd 用户单元随装 |
 
-发行包：deb/rpm 与 RHEL 8/9 的 `qingjian` 主包都内置这个前端（EL 只有 IBus-only 主包），见 [`docs/notes/linux-packaging.md`](../../../docs/notes/linux-packaging.md)。
+发行包：deb/rpm 与 RHEL 8/9/10 的 `qingjian` 主包都内置这个前端（EL8 另有可选 Fcitx4 子包），见 [`docs/notes/linux-packaging.md`](../../../docs/notes/linux-packaging.md)。
 
 怎么验这两支见 [`docs/notes/linux-dual-frontend.md`](../../../docs/notes/linux-dual-frontend.md)，真机上的坑记在 [`docs/notes/linux-bringup.md`](../../../docs/notes/linux-bringup.md)。
 

@@ -35,15 +35,15 @@
   这个平台的 `SHA256SUMS-<平台>`、`build-info-<平台>.json` 片段传到草稿上。
 - `linux-packages`（`ubuntu-26.04`）与它们并行：在容器里打 deb / rpm（`apps/linux/packaging/build.sh`，见 [linux-packaging.md](linux-packaging.md)），在 Debian 13、Ubuntu 26.04、Fedora 42 的干净容器里装一遍自检，
   再同样传到草稿上（片段名 `linux-packages`）。它们不进 `releases.json`：每种格式两个包，检查更新与官网下载页仍按 tar.gz 认 Linux。
-- `linux-rpm-el`（`ubuntu-26.04`，matrix EL8/EL9）与它们并行：`build.sh el8` / `el9` 在 AlmaLinux 8/9 容器里重编 Rust、打 IBus-only 的 `qingjian` 主包，
-  `smoke/run-el.sh` 在对应 AlmaLinux 容器里装一遍自检；片段名 `linux-rpm-el8` / `linux-rpm-el9`。只出主包，同样不进 `releases.json`。
+- `linux-rpm-el`（`ubuntu-26.04`，matrix EL8/EL9/EL10）与它们并行：`build.sh el8` / `el9` / `el10` 在 AlmaLinux 8/9/10 容器里重编 Rust、打 `qingjian` 主包；EL8 另带可选的 `qingjian-fcitx4` 子包（Fcitx4 来自 EPEL，主包不依赖）。
+  `smoke/run-el.sh` 在对应 AlmaLinux 容器里装一遍自检；片段名 `linux-rpm-el8` / `linux-rpm-el9` / `linux-rpm-el10`。这些包同样不进 `releases.json`。
 - `publish`：要打的平台都成功才跑，`tools/release/finish-release.sh` 把片段合成一份 `SHA256SUMS` 与 `build-info.json`（各平台构建机记在 `platforms` 里）、删掉片段、草稿转正
   → `publish-releases-json.sh` 生成并签名 `releases.json` → `bump-website.sh` 触发官网构建。
   任何平台失败，Release 就停在草稿、用户看不到；修好后删掉草稿与标签重推，或在 Actions 页重跑失败的 job。
 
 **单平台补丁**（只修一个平台的急事）：只改那个平台的版本号，打 `macos-v<版本>` / `windows-v<版本>` / `linux-v<版本>` / `android-v<版本>`，同一套流程只打那一个平台，Release 标题带平台名。
 
-发版后 GitHub Release 上有：`qingjian-<版本>-macos-arm64.pkg`、`-macos-x86_64.pkg`、`-windows-x86_64-setup.exe`、`-linux-x86_64.tar.gz`、`-android-arm64.apk`，deb / rpm 各两个（`qingjian`、`qingjian-fcitx5`），RHEL 8/9 的 IBus-only rpm（`qingjian-<版本>-1.el8.x86_64.rpm` / `.el9`），`SHA256SUMS`、`build-info.json`、`releases.json` 与 `.sig`。
+发版后 GitHub Release 上有：`qingjian-<版本>-macos-arm64.pkg`、`-macos-x86_64.pkg`、`-windows-x86_64-setup.exe`、`-linux-x86_64.tar.gz`、`-android-arm64.apk`，deb / rpm 各两个（`qingjian`、`qingjian-fcitx5`），RHEL 8/9/10 的 rpm（`qingjian-<版本>-1.el8.x86_64.rpm` / `.el9` / `.el10`，EL8 另有可选的 `qingjian-fcitx4-<版本>-1.el8.x86_64.rpm`），`SHA256SUMS`、`build-info.json`、`releases.json` 与 `.sig`。
 
 官网由 Cloudflare Workers Builds 按官网仓库的提交自动构建，没有可调用的构建钩子，所以主仓库靠**往官网仓库推一个小提交**来触发：
 `tools/release/bump-website.sh` 把版本标签与文档提交号写进官网的 `src/content/upstream.json` 并提交推送（提交者 qingjian-ci）。
@@ -62,7 +62,7 @@ Rust 工具链由 `rust-toolchain.toml` 钉版本（现在 1.96.0），各 workf
 - **Linux**：`apps/linux/scripts/package.sh` 打的包里是编好的 Server、设置程序与 Fcitx5 插件、产品数据压缩包、`install.sh` / `uninstall.sh` / `files.py`，按仓库相对路径放，
   安装与源码安装走同一份清单与校验；打完先装进临时目录冒烟测试（文件齐、校验过、`ldd` 无缺库）再上传。
   插件链接构建机的 Fcitx5（`build-info.json` 的 `platforms.linux.runner` 记了版本），所以只承诺 Ubuntu 26.04，其他发行版走源码安装。
-  RHEL 8/9 另出 IBus-only 的 `qingjian` 主包：在 AlmaLinux 8/9 容器里重编 Rust（EL8 的 glibc 2.28 跑不了 Ubuntu 产物），`Requires: ibus >= 1.5.19`，不带 fcitx5；EL8 装完要重新登录，EL9 会尝试重启当前用户服务。
+  RHEL 8/9/10 另出 `qingjian` 主包：在 AlmaLinux 8/9/10 容器里重编 Rust（EL8 的 glibc 2.28 跑不了 Ubuntu 产物），`Requires: ibus >= 1.5.19`，不带 fcitx5；EL8 装完要重新登录，EL9/EL10 会尝试重启当前用户服务。EL8 另有可选 `qingjian-fcitx4`（依赖 EPEL 的 fcitx），主包不依赖它。
 - **Android**：runner 自带 SDK 与 JDK，job 里按 `app/build.gradle.kts` 的 `ndkVersion` 装 NDK、装 cargo-ndk，`./gradlew assembleRelease` 带产品数据出 arm64 APK，
   签名用 Secrets 里的密钥库（见下文「签名与公证」），`apksigner verify` 过了才上传。只出 APK，不进应用商店；官网下载页与软件内检查更新现在都不认 `android`，
   `releases.json` 里有这条但它们会跳过，用户从 GitHub Release 下载。
@@ -86,7 +86,7 @@ cargo 命令全 `--locked`（含 `bundle.sh` 与 `build.ps1`）。普通 CI 只�
 | `.github/workflows/ci.yml` | push main、PR | Linux 上 `cargo fmt --check` / clippy / test，排除 `qingjian-macos`（IMK 外壳只能在 macOS 编译，macOS runner 计费是 Linux 的 10 倍） |
 | `.github/workflows/clipboard-release.yml` | 推 `clipboard-v*` 标签 | 打青简剪贴板的独立安装包，发到 qingjian-clipboard 的 Release（见下文「青简剪贴板」） |
 | `.github/workflows/release.yml` | 推 `v*`（全部平台）或 `macos-v*` / `windows-v*` / `linux-v*` / `android-v*`（单平台）标签 | `prepare` 门禁并建草稿 Release → `macos` / `windows` / `linux` / `linux-packages` / `linux-rpm-el` / `android` 并行打包上传 → `publish` 合并摘要、转正、生成 `releases.json`、触发官网构建（见上文） |
-| `.github/workflows/rpm-el.yml` | 手动 `workflow_dispatch` | 只验证 RHEL 8/9 的 IBus-only rpm：matrix EL8/EL9 构建 + `smoke/run-el.sh` 自检，产物作为 workflow artifact，不传 Release |
+| `.github/workflows/rpm-el.yml` | 手动 `workflow_dispatch` | 只验证 RHEL 8/9/10 的 rpm：matrix EL8/EL9/EL10 构建 + `smoke/run-el.sh` 自检（EL8 含可选 Fcitx4），产物作为 workflow artifact，不传 Release |
 
 ## 产品数据从哪来
 

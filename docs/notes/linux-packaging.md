@@ -1,6 +1,6 @@
-# Linux 发行包：deb / rpm / RHEL 8/9（2026-11-04）
+# Linux 发行包：deb / rpm / RHEL 8/9/10（2026-11-06）
 
-`apps/linux/packaging/build.sh` 一条命令打 deb、rpm 与 RHEL 8/9 的 IBus-only rpm。发版时 `release.yml` 的 `linux-packages` job 打 deb/rpm、用 `smoke/run.sh` 在三个发行版容器里装一遍；`linux-rpm-el` job 另打 EL8/EL9、用 `smoke/run-el.sh` 在 AlmaLinux 容器里自检。两者都挂到 GitHub Release（0.3.3 起；之前只发 tar.gz）。
+`apps/linux/packaging/build.sh` 一条命令打 deb、rpm 与 RHEL 8/9/10 的 rpm。发版时 `release.yml` 的 `linux-packages` job 打 deb/rpm、用 `smoke/run.sh` 在三个发行版容器里装一遍；`linux-rpm-el` job 另打 EL8/EL9/EL10、用 `smoke/run-el.sh` 在 AlmaLinux 容器里自检。两者都挂到 GitHub Release（0.3.3 起；之前只发 tar.gz）。
 这一页记每种包装了什么、为什么这么分、怎么装，以及几处绕不过去的限制。
 flatpak 暂不做（2026-10-23）：输入法在沙箱里要靠宿主机上的登记脚本去写服务与 IBus 组件，等于绕开沙箱，出了问题也难查。
 用户级的源码安装（`apps/linux/scripts/install.sh`）另见 [linux-fcitx5.md](linux-fcitx5.md) 与 [linux-dual-frontend.md](linux-dual-frontend.md)。
@@ -10,23 +10,23 @@ flatpak 暂不做（2026-10-23）：输入法在沙箱里要靠宿主机上的�
 ```bash
 apps/linux/packaging/build.sh                    # deb 与 rpm 两种都打
 apps/linux/packaging/build.sh deb rpm            # 只打给出的几种
-apps/linux/packaging/build.sh el8                 # 只打 RHEL 8 的 IBus-only rpm
-apps/linux/packaging/build.sh el8 el9             # 两代 EL 都打
-apps/linux/packaging/build.sh deb rpm el8 el9     # 全部都打
+apps/linux/packaging/build.sh el8                 # 只打 RHEL 8 的 rpm（IBus 主包 + 可选 Fcitx4）
+apps/linux/packaging/build.sh el8 el9 el10        # 三代 EL 都打
+apps/linux/packaging/build.sh deb rpm el8 el9 el10   # 全部都打
 QINGJIAN_SAMPLE=1 apps/linux/packaging/build.sh   # 没有产品数据时只带样例词库
 ```
 
-产物在 `target/linux-pkg/out/`；EL8/EL9 在 `out/el8`、`out/el9`。只要 docker（免 sudo），本机不用装 fcitx5 开发包或 rpmbuild：
+产物在 `target/linux-pkg/out/`；EL8/EL9/EL10 在 `out/el8`、`out/el9`、`out/el10`。只要 docker（免 sudo），本机不用装 fcitx5 开发包或 rpmbuild：
 
 | 步骤 | 在哪做 | 为什么 |
 |---|---|---|
 | Rust 的 Server 与 IBus 前端（deb/rpm） | Ubuntu 22.04 容器，编一次两种包共用 | IBus 前端只依赖 libc / libm / libgcc，Server 还链 `libssl` / `libcrypto`（Ubuntu 22.04 上是 OpenSSL 3）；在 glibc 2.35 上编，实际门槛是 `GLIBC_2.34`。工具链与 crate 缓存直接挂本机的 `~/.cargo` / `~/.rustup`；依赖树里有 `openssl-sys`，编译要 `libssl-dev`，rpm 的自动依赖会把 libssl 写进 `Requires` |
-| Rust 与 rpm（EL8/EL9） | 各自的 AlmaLinux 8/9 容器 | EL8 的 glibc 2.28 跑不了 `GLIBC_2.34` 的 Ubuntu 产物，EL9 也不复用；两代各编一次。server 在 EL8 链 `libssl.so.1.1`、EL9 链 `libssl.so.3`，编译要 `openssl-devel`；只出 IBus-only 的 `qingjian` 主包 |
+| Rust 与 rpm（EL8/EL9/EL10） | 各自的 AlmaLinux 8/9/10 容器 | EL8 的 glibc 2.28 跑不了 `GLIBC_2.34` 的 Ubuntu 产物；EL9/EL10 也不复用，三代各编一次。server 在 EL8 链 `libssl.so.1.1`、EL9/EL10 链 `libssl.so.3`，编译要 `openssl-devel`；EL8 另可选 Fcitx4 子包 |
 | fcitx5 插件（deb） | Debian 13 容器 | 插件要对着目标发行版自己的 fcitx5 编；`CMakeLists.txt` 要 5.1.8+，Ubuntu 24.04 只有 5.1.7 |
 | fcitx5 插件（rpm） | Fedora 42 容器 | 同上 |
 | 随包资源 | 本机，`files.py resources` | 与 `install.sh` 同一套产品数据校验（`tools/release/data.lock`）与布局 |
 
-EL9 的 glibc 2.34 与 Ubuntu 22.04 相同，理论上能复用那边的产物；但两代都对着目标发行版的 OpenSSL 与 rpm 依赖各编一份，省得 EL8/EL9 混用。EL8 则必须重编（glibc 2.28 跑不了 `GLIBC_2.34`）。
+EL9/EL10 的 glibc 分别 2.34/2.39，理论上能复用 Ubuntu 22.04 的产物（EL10 还更新）；但三代都对着目标发行版的 OpenSSL 与 rpm 依赖各编一份，省得混用。EL8 则必须重编（glibc 2.28 跑不了 `GLIBC_2.34`）。
 
 ## 各装了什么
 
@@ -39,11 +39,13 @@ deb 与 rpm 都拆成两个包：
 
 IBus 前端没有额外依赖，跟 Server 同包；它的组件 XML 在系统目录，IBus 直接认，不用 `install.sh` 那套 environment.d。
 
-EL8/EL9 没有 fcitx5，只出一个 `qingjian` 主包，内容与上面的 `qingjian` 相同；依赖换成 `Requires: ibus >= 1.5.19`、`Recommends: ibus-gtk3`，不建 `qingjian-fcitx5` 子包。EL8 的 systemd 239 不支持 `systemctl --user -M user@`，`%post` 只做 `--global enable` 并提示重新登录；EL9 会再对已登录用户 restart。
+EL8/EL9/EL10 没有 fcitx5，只出一个 `qingjian` 主包，内容与上面的 `qingjian` 相同；依赖换成 `Requires: ibus >= 1.5.19`、`Recommends: ibus-gtk3`，不建 `qingjian-fcitx5` 子包。EL8 的 systemd 239 不支持 `systemctl --user -M user@`，`%post` 只做 `--global enable` 并提示重新登录；EL9/EL10 会再对已登录用户 restart。
+
+RHEL 8 的 Fcitx4 由 **EPEL 8** 提供（`fcitx-4.2.9.7`），RHEL 9/10 没有。EL8 另外打一个可选的 `qingjian-fcitx4` 子包：它 `Requires: fcitx`，主包不依赖它，也不会自动安装；只用 IBus 的用户不需要 EPEL。
 
 ## 装法
 
-deb/rpm 装完会对正在跑的用户 systemd 实例尝试 restart；EL9 同样，但用户 manager 没跑时不会立即起。EL8 只登记下次登录自启，装完要注销重新登录（或在该用户下 `systemctl --user daemon-reload && systemctl --user restart qingjian-server`）。IBus 都要重新登录一次（或 `ibus restart`）才看得到新引擎。
+deb/rpm 装完会对正在跑的用户 systemd 实例尝试 restart；EL9/EL10 同样，但用户 manager 没跑时不会立即起。EL8 只登记下次登录自启，装完要注销重新登录（或在该用户下 `systemctl --user daemon-reload && systemctl --user restart qingjian-server`）。IBus 都要重新登录一次（或 `ibus restart`）才看得到新引擎。
 
 ### Debian / Ubuntu（deb）
 
@@ -66,14 +68,18 @@ KDE Plasma（Wayland）上输入法由 KWin 拉起，默认是 fcitx5：「系�
 （等于 `kwriteconfig6 --file kwinrc --group Wayland --key InputMethod /usr/share/applications/org.freedesktop.IBus.Panel.Wayland.Gtk3.desktop`），
 装了 fcitx5 的再把它的自启关掉，重新登录。
 
-### RHEL 8/9、AlmaLinux、Rocky Linux（IBus-only）
+### RHEL 8/9/10、AlmaLinux、Rocky Linux
 
 ```bash
-# 文件名里的 el8 / el9 按目标系统选
+# 文件名里的 el8 / el9 / el10 按目标系统选
 sudo dnf install ./qingjian-<版本>-1.el8.x86_64.rpm
+
+# RHEL 8 想用 Fcitx4（需先启用 EPEL）
+sudo dnf install epel-release
+sudo dnf install ./qingjian-<版本>-1.el8.x86_64.rpm ./qingjian-fcitx4-<版本>-1.el8.x86_64.rpm
 ```
 
-只装 `qingjian` 主包，没有 fcitx5 插件；`ibus` 会由 dnf 一起装上。EL8 装完要注销重新登录一次；EL9 的 `%post` 会尝试重启当前用户的服务，但新引擎仍建议重新登录或 `ibus restart`。
+只装 `qingjian` 主包，没有 fcitx5 插件；`ibus` 会由 dnf 一起装上。EL8 装完要注销重新登录一次；EL9/EL10 的 `%post` 会尝试重启当前用户的服务，但新引擎仍建议重新登录或 `ibus restart`。EL8 的 Fcitx4 是可选子包，不装也不影响 IBus。
 
 ### 装完之后
 
@@ -83,14 +89,15 @@ sudo dnf install ./qingjian-<版本>-1.el8.x86_64.rpm
 - 自检（不经过输入法框架，直接问 Server）：`qingjian-linux-ibus --check nihao`。
 - Server 状态与日志：`systemctl --user status qingjian-server`、`journalctl --user -u qingjian-server`。
 
-## 实测（2026-09-23 / 2026-11-04，容器里装包 + 起 Server + `--check nihao`）
+## 实测（2026-09-23 / 2026-11-06，容器里装包 + 起 Server + `--check nihao`）
 
 | 包 | 装在 | 结果 |
 |---|---|---|
 | deb 两个包 | Debian 13、Ubuntu 26.04 | 装上；插件不缺库；`systemctl --global` 自启登记上、卸载后清掉；自检出「你好」等候选 |
 | deb `qingjian` | Ubuntu 24.04、22.04 | 同上（不装插件） |
 | rpm 两个包 | Fedora 42、Fedora 最新、openSUSE Tumbleweed | 同上 |
-| rpm `qingjian`（IBus-only） | AlmaLinux 8、AlmaLinux 9 | 装上；`--global` 自启登记；IBus XML 的 `<exec>` 指向 `/usr/bin/qingjian-linux-ibus`；`--check nihao` 出候选；本地整句模型加载；卸载后登记与 XML 清掉 |
+| rpm `qingjian`（IBus） | AlmaLinux 8、AlmaLinux 9、AlmaLinux 10 | 装上；`--global` 自启登记；IBus XML 的 `<exec>` 指向 `/usr/bin/qingjian-linux-ibus`；`--check nihao` 出候选；本地整句模型加载；卸载后登记与 XML 清掉 |
+| rpm `qingjian-fcitx4`（可选） | AlmaLinux 8 | 装上；`/usr/lib64/fcitx/fcitx-qingjian.so` 不缺库；addon 配置与图标在；主包与 IBus 检查同上一行 |
 
 容器里没有图形会话，**真会话里切到青简打字没验**：这一步要在别的机器上装了之后手测，判据见 [linux-dual-frontend.md](linux-dual-frontend.md) 第二节。
 
@@ -100,17 +107,17 @@ sudo dnf install ./qingjian-<版本>-1.el8.x86_64.rpm
 apps/linux/packaging/build.sh deb rpm
 apps/linux/packaging/smoke/run.sh                 # 五个发行版都跑；给镜像名只跑那几个
 
-apps/linux/packaging/build.sh el8 el9
-apps/linux/packaging/smoke/run-el.sh              # almalinux:8 / almalinux:9 各跑一次
+apps/linux/packaging/build.sh el8 el9 el10
+apps/linux/packaging/smoke/run-el.sh              # almalinux:8 / 9 / 10 各跑一次
 ```
 
 把 `target/linux-pkg/out/` 的 deb / rpm 拿到 Debian 13、Ubuntu 26.04、Fedora 42、最新 Fedora、openSUSE Tumbleweed 的干净容器里：
 装两个包，看 `systemctl --global` 自启登记、IBus 组件的 `<exec>` 指向的文件在不在、fcitx5 插件缺不缺库，
 起 Server 用包里的 `qingjian-linux-ibus --check nihao` 打一串键（走真前端那套客户端代码，不另抄协议），
 等本地整句模型加载完，卸载后看自启登记与组件清掉没有；哪一项不对退出码非 0。每个容器要装发行版的依赖，跑一遍五六分钟。
-`run-el.sh` 做同样的事，只是镜像换成 `almalinux:8` / `almalinux:9`，装的是 IBus-only 的 `qingjian` 主包，跳过 fcitx5 检查。
+`run-el.sh` 做同样的事，只是镜像换成 `almalinux:8` / `9` / `10`；EL8 如果打出了 `qingjian-fcitx4` 就一起装上并检查插件，EL9/EL10 只装 IBus 主包。
 2026-10-14 五个都过（data-v7）：候选「你好 👋 (＾▽＾)ノ 你好好 你好像…」，含章·通变加载并预热。
-2026-11-04 EL8/EL9 也过（AlmaLinux 8/9，data-v9）：候选与模型加载同上。
+2026-11-06 EL8/EL9/EL10 都过（AlmaLinux 8/9/10，data-v9）：EL10 的 IBus 包候选与模型加载同上；EL8 的 Fcitx4 子包装上、插件不缺库，主包仍只依赖 IBus。
 
 ### fcitx5 的依赖与切换框架
 
@@ -125,7 +132,7 @@ Debian 13、Ubuntu 26.04、Fedora 42 容器里看过；`dpkg -i` 不补依赖，
 
 - **`systemctl --global enable` 不够**：它只对之后起来的用户 systemd 实例生效，而注销再登录得快时实例根本不重起。
   2026-09-23 在 Ubuntu 24.04 上踩过：10:51 装包、10:52 重新登录，用户实例是 10:46 起的一直没换，Server 一次都没起，
-  切到青简打字没有候选。所以 deb/rpm 与 EL9 的 postinst / `%post` 对 `loginctl list-users` 里的每个用户 `systemctl --user -M 用户@.host restart`，
+  切到青简打字没有候选。所以 deb/rpm 与 EL9/EL10 的 postinst / `%post` 对 `loginctl list-users` 里的每个用户 `systemctl --user -M 用户@.host restart`，
   prerm / `%preun` 同样 stop。EL8 的 systemd 239 没有这个能力（`--machine` 只认容器名），只做 `--global enable`，装完提示重新登录；卸载也不逐用户 stop，运行中的 Server 到注销才退出。
 - **与用户级安装冲突**：`install.sh` 装在 `~/.local` 的那一份也叫 `qingjian-server.service`，组件名也相同。
   用户目录的单元优先于系统目录的，两份同时在时生效的是用户目录那份；装发行包之前先跑 `apps/linux/scripts/uninstall.sh`。
