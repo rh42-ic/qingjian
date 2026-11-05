@@ -4,6 +4,9 @@
 可选的「网盘：[名称](链接)」一行放 GitHub 下载不方便时的网盘地址，官网单独显示成按钮，不算更新条目。
 发版时 CI 从这里取该版本的说明写进 GitHub Release，并汇总成官网下载页用的 `releases.json`（`tools/release/releases_json.py`）。
 
+## 0.3.4 · 2026-11-06 · stable
+- RHEL 10 与 RHEL 8 Fcitx4 测试包。
+
 ## 0.3.3 · 未发布 · stable
 
 ## 0.3.2 · 2026-10-30 · stable
